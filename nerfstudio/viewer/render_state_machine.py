@@ -165,6 +165,8 @@ class RenderStateMachine(threading.Thread):
                             background_color
                         ), torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
                             outputs = self.viewer.get_model().get_outputs_for_camera(camera, obb_box=obb)
+                            # Markierung -> output wird hier getriggert wenn crop gesetzt ist
+                            # get_outputs_for_camera ist in splatfacto model
                     else:
                         with torch.no_grad(), viewer_utils.SetTrace(self.check_interrupt):
                             outputs = self.viewer.get_model().get_outputs_for_camera(camera, obb_box=obb)
@@ -211,6 +213,11 @@ class RenderStateMachine(threading.Thread):
             if not self.viewer.ready:
                 time.sleep(0.1)
                 continue
+            # scetchy, should not be here 
+            if self.viewer.control_panel.save_cropped_scene:
+                print("[P] render state machine call")
+                self.viewer.save_pipeline()
+                self.viewer.control_panel.save_cropped_scene = False
             if not self.render_trigger.wait(0.2):
                 # if we haven't received a trigger in a while, send a static action
                 self.action(RenderAction(action="static", camera_state=self.viewer.get_camera_state(self.client)))
@@ -229,6 +236,8 @@ class RenderStateMachine(threading.Thread):
                 # if we got interrupted, don't send the output to the viewer
                 continue
             self._send_output_to_viewer(outputs, static_render=(action.action in ["static", "step"]))
+            
+
 
     def check_interrupt(self, frame, event, arg):
         """Raises interrupt when flag has been set and not already on lowest resolution.

@@ -46,6 +46,8 @@ from nerfstudio.viewer.utils import CameraState, parse_object
 from nerfstudio.viewer.viewer_elements import ViewerControl, ViewerElement
 from nerfstudio.viewer_legacy.server import viewer_utils
 
+from copy import deepcopy
+
 if TYPE_CHECKING:
     from nerfstudio.engine.trainer import Trainer
 
@@ -92,6 +94,8 @@ class Viewer:
         self.log_filename = log_filename
         self.datapath = datapath.parent if datapath.is_file() else datapath
         self.include_time = self.pipeline.datamanager.includes_time
+
+        # print(self.pipeline)
 
         if self.config.websocket_port is None:
             websocket_port = viewer_utils.get_free_port(default_port=self.config.websocket_port_default)
@@ -556,3 +560,48 @@ class Viewer:
     def training_complete(self) -> None:
         """Called when training is complete."""
         self.training_state = "completed"
+
+
+    def save_pipeline(self) -> None:
+        print("[P] saving cropped checkpoint")
+        step = 30001 # temp
+        ckpt_path = "outputs/processed_data/splatfacto/2025-04-28_140937/nerfstudio_models/cropped_test.ckpt" # Different filename for the cropped checkpoint
+
+        # 1. Create a deep copy of the original pipeline
+        cropped_pipeline = deepcopy(self.pipeline)
+
+        # 2. Get the crop IDs
+        means = cropped_pipeline._model.gauss_params['means']
+        crop_ids = self.control_panel.crop_obb.within(means).squeeze()
+        print(f"Crop IDs: {crop_ids}")
+        print(f"pipeline before cropping (in copied pipeline): \n {cropped_pipeline._model.gauss_params}")
+
+        # 3. Filter the gaussian parameters in the copied pipeline
+        original_keys = list(cropped_pipeline._model.gauss_params.keys())
+
+        for key in original_keys:
+            param = cropped_pipeline._model.gauss_params[key]
+            if len(param) > 0 and param.shape[0] == len(crop_ids):
+                cropped_pipeline._model.gauss_params[key] = param[crop_ids]
+            elif len(param) > 0 and param.shape[0] != len(crop_ids):
+                print(f"Warning (cropped pipeline): Parameter '{key}' has a different first dimension ({param.shape[0]}) than crop_ids ({len(crop_ids)}). Skipping filtering for this parameter.")
+            elif len(param) == 0:
+                print(f"Warning (cropped pipeline): Parameter '{key}' is empty. Skipping filtering.")
+
+        print("Gaussian parameters filtered in the copied pipeline.")
+        print(f"pipeline after cropping (in copied pipeline): \n {cropped_pipeline._model.gauss_params}")
+
+        # 4. Save the state dictionary of the cropped pipeline
+        torch.save(
+            {
+                "step": step,
+                "pipeline": cropped_pipeline.module.state_dict()  # type: ignore
+                if hasattr(cropped_pipeline, "module")
+                else cropped_pipeline.state_dict(),
+                # Note: We are not saving optimizers or schedulers for this temporary cropped pipeline.
+                # You might choose to save them if needed for your use case.
+            },
+            ckpt_path,
+        )
+
+        print(f"[P] Cropped checkpoint saved to: {ckpt_path}")

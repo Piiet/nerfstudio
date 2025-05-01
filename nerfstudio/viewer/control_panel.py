@@ -26,6 +26,7 @@ from viser import ViserServer
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.utils.colormaps import ColormapOptions, Colormaps
 from nerfstudio.viewer.viewer_elements import (  # ViewerButtonGroup,
+    ViewerButton,
     ViewerButtonGroup,
     ViewerCheckbox,
     ViewerDropdown,
@@ -35,6 +36,7 @@ from nerfstudio.viewer.viewer_elements import (  # ViewerButtonGroup,
     ViewerSlider,
     ViewerVec3,
 )
+
 
 
 class ControlPanel:
@@ -63,6 +65,7 @@ class ControlPanel:
         self.server = server
         self._elements_by_tag: DefaultDict[str, List[ViewerElement]] = defaultdict(lambda: [])
         self.default_composite_depth = default_composite_depth
+        self.save_cropped_scene = False
 
         self._train_speed = ViewerButtonGroup(
             name="Train Speed",
@@ -145,10 +148,18 @@ class ControlPanel:
         )
         self._crop_viewport = ViewerCheckbox(
             "Enable ",
-            False,
+            False, # default_value
             cb_hook=lambda han: [self.update_control_panel(), rerender_cb()],
             hint="Crop the scene to a specified box",
         )
+
+        self._safe_cropped_scene = ViewerButton(
+            name="safe cropped scene",
+            cb_hook=lambda han: self._safe_cropped_scene_cb(),
+            disabled=False,
+            visible = True,
+        )
+
         self._background_color = ViewerRGB(
             "Background color", (38, 42, 55), cb_hook=lambda _: rerender_cb(), hint="Color of the background"
         )
@@ -224,6 +235,7 @@ class ControlPanel:
             self.add_element(self._crop_center, additional_tags=("crop",))
             self.add_element(self._crop_scale, additional_tags=("crop",))
             self.add_element(self._crop_rot, additional_tags=("crop",))
+            self.add_element(self._safe_cropped_scene, additional_tags=("crop",))
 
         self.add_element(self._time, additional_tags=("time",))
         self._reset_camera = server.gui.add_button(
@@ -233,6 +245,13 @@ class ControlPanel:
             hint="Set the up direction of the camera orbit controls to the camera's current up direction.",
         )
         self._reset_camera.on_click(self._reset_camera_cb)
+
+    # callbackfunction for cropped scene safe
+    def _safe_cropped_scene_cb(self) -> None:
+        # print("test reach")
+        # print(self.server)
+        # print("\n")
+        self.save_cropped_scene = True
 
     def _train_speed_cb(self) -> None:
         pass

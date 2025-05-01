@@ -106,6 +106,23 @@ def eval_setup(
     pipeline = config.pipeline.setup(device=device, test_mode=test_mode)
     assert isinstance(pipeline, Pipeline)
     pipeline.eval()
+    # print("pipeline: ")
+    # print(config.pipeline)
+    # print("\n")
+
+    
+
+    # print("Pipeline:")
+    # print(pipeline.module.state_dict())
+    # print("\n")
+
+
+    # if hasattr(pipeline, '_model') and hasattr(pipeline._model, 'gauss_params') and 'means' in pipeline._model.gauss_params:
+    #     means_parameter = pipeline._model.gauss_params['means']
+    #     first_mean = means_parameter[0]
+    #     print(f"The first mean vector is: {first_mean}")
+    # else:
+    #     print("Could not access the 'means' parameter. Please check the pipeline structure.")
 
     # load checkpointed information
     checkpoint_path, step = eval_load_checkpoint(config, pipeline)
